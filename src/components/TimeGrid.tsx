@@ -126,7 +126,7 @@ export function TimeGrid({ days, tasks, onSelectTask, onCreateAt, onToggleDone }
                       task={p.task}
                       onClick={() => onSelectTask(p.task)}
                       onToggleDone={done => onToggleDone(p.task.id, done)}
-                      className="absolute cl-fade-in shadow-sm"
+                      className="absolute cl-fade-in shadow-sm z-10"
                       style={{
                         top,
                         height,
