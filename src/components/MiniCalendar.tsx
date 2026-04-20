@@ -3,26 +3,26 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { BR_MONTHS, BR_WEEKDAYS_SHORT, monthGrid } from '../lib/dates';
 
 interface Props {
-  ref: Date;
+  refDate: Date;
   selected: Date;
   onSelect: (d: Date) => void;
   onChangeRef: (d: Date) => void;
 }
 
-export function MiniCalendar({ ref, selected, onSelect, onChangeRef }: Props) {
+export function MiniCalendar({ refDate, selected, onSelect, onChangeRef }: Props) {
   const today = new Date();
-  const days = monthGrid(ref);
+  const days = monthGrid(refDate);
   return (
     <div>
       <div className="flex items-center justify-between px-1 mb-2">
         <div className="text-sm font-medium">
-          {BR_MONTHS[ref.getMonth()]} {ref.getFullYear()}
+          {BR_MONTHS[refDate.getMonth()]} {refDate.getFullYear()}
         </div>
         <div className="flex items-center">
-          <button className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => onChangeRef(subMonths(ref, 1))} aria-label="Mês anterior">
+          <button className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => onChangeRef(subMonths(refDate, 1))} aria-label="Mês anterior">
             <ChevronLeft size={14} />
           </button>
-          <button className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => onChangeRef(addMonths(ref, 1))} aria-label="Próximo mês">
+          <button className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => onChangeRef(addMonths(refDate, 1))} aria-label="Próximo mês">
             <ChevronRight size={14} />
           </button>
         </div>
@@ -34,7 +34,7 @@ export function MiniCalendar({ ref, selected, onSelect, onChangeRef }: Props) {
       </div>
       <div className="grid grid-cols-7 gap-0.5">
         {days.map((d, i) => {
-          const inMonth = isSameMonth(d, ref);
+          const inMonth = isSameMonth(d, refDate);
           const isToday = isSameDay(d, today);
           const isSelected = isSameDay(d, selected);
           return (

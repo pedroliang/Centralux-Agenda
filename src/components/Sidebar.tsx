@@ -39,7 +39,7 @@ export function Sidebar({
           <Plus size={16} /> Criar
         </button>
 
-        <MiniCalendar ref={refDate} selected={selected} onSelect={onSelectDate} onChangeRef={onChangeRef} />
+        <MiniCalendar refDate={refDate} selected={selected} onSelect={onSelectDate} onChangeRef={onChangeRef} />
 
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
           <div className="flex items-center gap-2 text-sm font-medium mb-2">
