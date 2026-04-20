@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Menu, Moon, Plus, Search, Sun, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogIn, LogOut, Menu, Moon, Plus, Search, Sun, User, Calendar as CalendarIcon } from 'lucide-react';
 import { formatHeader } from '../lib/dates';
 import { ThemeMode, ViewMode } from '../types';
 
@@ -8,6 +8,8 @@ interface Props {
   theme: ThemeMode;
   query: string;
   online: boolean;
+  isAdmin: boolean;
+  username: string | null;
   onToggleSidebar: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -16,6 +18,8 @@ interface Props {
   onQuery: (q: string) => void;
   onNew: () => void;
   onToggleTheme: () => void;
+  onLogin: () => void;
+  onLogout: () => void;
 }
 
 const VIEW_LABEL: Record<ViewMode, string> = {
@@ -26,8 +30,9 @@ const VIEW_LABEL: Record<ViewMode, string> = {
 };
 
 export function Header({
-  refDate, view, theme, query, online,
-  onToggleSidebar, onPrev, onNext, onToday, onChangeView, onQuery, onNew, onToggleTheme
+  refDate, view, theme, query, online, isAdmin, username,
+  onToggleSidebar, onPrev, onNext, onToday, onChangeView, onQuery, onNew, onToggleTheme,
+  onLogin, onLogout
 }: Props) {
   return (
     <header className="h-14 flex items-center gap-2 px-3 border-b border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 backdrop-blur-sm shrink-0">
@@ -128,6 +133,27 @@ export function Header({
           {online ? 'Online' : 'Offline'}
         </span>
       </div>
+
+      {isAdmin ? (
+        <button
+          onClick={onLogout}
+          className="ml-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
+          title="Sair da conta admin"
+        >
+          <User size={14} />
+          <span className="hidden sm:inline">{username}</span>
+          <LogOut size={12} />
+        </button>
+      ) : (
+        <button
+          onClick={onLogin}
+          className="ml-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+          title="Login administrador"
+        >
+          <LogIn size={14} />
+          <span className="hidden sm:inline">Entrar</span>
+        </button>
+      )}
     </header>
   );
 }

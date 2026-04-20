@@ -8,6 +8,7 @@ import { NewTask, Task, TaskColor } from '../types';
 interface Props {
   task: Task | null;
   initialStart?: Date;
+  isAdmin: boolean;
   onClose: () => void;
   onSave: (t: NewTask) => Promise<void>;
   onUpdate: (id: string, patch: Partial<Task>) => Promise<void>;
@@ -30,7 +31,7 @@ function computeAlarmMinutesBefore(start: string | null, alarm: string | null): 
   return diff >= 0 ? diff : null;
 }
 
-export function TaskModal({ task, initialStart, onClose, onSave, onUpdate, onDelete }: Props) {
+export function TaskModal({ task, initialStart, isAdmin, onClose, onSave, onUpdate, onDelete }: Props) {
   const now = useMemo(() => initialStart ?? new Date(), [initialStart]);
   const defaultStart = useMemo(() => {
     const d = new Date(now);
@@ -127,7 +128,7 @@ export function TaskModal({ task, initialStart, onClose, onSave, onUpdate, onDel
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 dark:border-slate-800">
-          <div className="font-semibold">{task ? 'Editar tarefa' : 'Nova tarefa'}</div>
+          <div className="font-semibold">{task ? (isAdmin ? 'Editar tarefa' : 'Visualizar tarefa') : 'Nova tarefa'}</div>
           <button className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800" onClick={onClose} aria-label="Fechar">
             <X size={16} />
           </button>
@@ -139,6 +140,7 @@ export function TaskModal({ task, initialStart, onClose, onSave, onUpdate, onDel
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder="Título da tarefa"
+            readOnly={!isAdmin}
             className="w-full text-lg font-medium px-0 py-1 bg-transparent border-0 border-b border-slate-200 dark:border-slate-700 focus:border-brand-500 focus:outline-none"
           />
 
@@ -147,6 +149,7 @@ export function TaskModal({ task, initialStart, onClose, onSave, onUpdate, onDel
               type="checkbox"
               checked={allDay}
               onChange={e => setAllDay(e.target.checked)}
+              disabled={!isAdmin}
               className="accent-brand-600 h-4 w-4"
             />
             Dia todo
@@ -240,7 +243,7 @@ export function TaskModal({ task, initialStart, onClose, onSave, onUpdate, onDel
 
         <div className="flex items-center justify-between px-5 py-3 border-t border-slate-200 dark:border-slate-800">
           <div>
-            {task && (
+            {task && isAdmin && (
               <button
                 onClick={handleDelete}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg text-rose-600 hover:bg-rose-500/10"
@@ -254,15 +257,17 @@ export function TaskModal({ task, initialStart, onClose, onSave, onUpdate, onDel
               onClick={onClose}
               className="px-3 py-1.5 text-sm rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
-              Cancelar
+              {isAdmin ? 'Cancelar' : 'Fechar'}
             </button>
-            <button
-              disabled={saving}
-              onClick={handleSave}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-brand-600 hover:bg-brand-500 text-white shadow disabled:opacity-60"
-            >
-              <Save size={14} /> {saving ? 'Salvando...' : 'Salvar'}
-            </button>
+            {isAdmin && (
+              <button
+                disabled={saving}
+                onClick={handleSave}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-brand-600 hover:bg-brand-500 text-white shadow disabled:opacity-60"
+              >
+                <Save size={14} /> {saving ? 'Salvando...' : 'Salvar'}
+              </button>
+            )}
           </div>
         </div>
       </div>

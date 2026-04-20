@@ -7,6 +7,7 @@ interface Props {
   refDate: Date;
   selected: Date;
   tasks: Task[];
+  isAdmin: boolean;
   onSelectDate: (d: Date) => void;
   onChangeRef: (d: Date) => void;
   onNew: () => void;
@@ -15,7 +16,7 @@ interface Props {
 }
 
 export function Sidebar({
-  open, refDate, selected, tasks,
+  open, refDate, selected, tasks, isAdmin,
   onSelectDate, onChangeRef, onNew,
   hideCompleted, onToggleHideCompleted
 }: Props) {
@@ -32,12 +33,14 @@ export function Sidebar({
       }
     >
       <div className="w-64 p-3 h-full flex flex-col gap-4">
-        <button
-          onClick={onNew}
-          className="inline-flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-medium shadow"
-        >
-          <Plus size={16} /> Criar
-        </button>
+        {isAdmin && (
+          <button
+            onClick={onNew}
+            className="inline-flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-medium shadow"
+          >
+            <Plus size={16} /> Criar
+          </button>
+        )}
 
         <MiniCalendar refDate={refDate} selected={selected} onSelect={onSelectDate} onChangeRef={onChangeRef} />
 

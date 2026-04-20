@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlarmPopup } from './components/AlarmPopup';
 import { Header } from './components/Header';
 import { ListView } from './components/ListView';
+import { LoginModal } from './components/LoginModal';
 import { MonthView } from './components/MonthView';
 import { SearchPalette } from './components/SearchPalette';
 import { SetupBanner } from './components/SetupBanner';
@@ -9,6 +10,7 @@ import { Sidebar } from './components/Sidebar';
 import { TaskModal } from './components/TaskModal';
 import { TimeGrid } from './components/TimeGrid';
 import { useAlarms } from './hooks/useAlarms';
+import { useAuth } from './hooks/useAuth';
 import { useTasks } from './hooks/useTasks';
 import { useTheme } from './hooks/useTheme';
 import { navigate, weekDays } from './lib/dates';
@@ -17,6 +19,8 @@ import { NewTask, Task, ViewMode } from './types';
 export default function App() {
   const { tasks, add, update, toggleDone, remove, online, loading } = useTasks();
   const { theme, toggle: toggleTheme } = useTheme();
+  const auth = useAuth();
+  const [loginOpen, setLoginOpen] = useState(false);
 
   const [refDate, setRefDate] = useState<Date>(new Date());
   const [selected, setSelected] = useState<Date>(new Date());
@@ -90,7 +94,10 @@ export default function App() {
 
   const days = view === 'day' ? [refDate] : view === 'week' ? weekDays(refDate) : [];
 
-  const handleCreateAt = (start: Date) => setCreating({ start });
+  const handleCreateAt = (start: Date) => {
+    if (!auth.isAdmin) { setLoginOpen(true); return; }
+    setCreating({ start });
+  };
   const handleSelectTask = (t: Task) => setEditing(t);
 
   return (
@@ -101,14 +108,21 @@ export default function App() {
         theme={theme}
         query={query}
         online={online}
+        isAdmin={auth.isAdmin}
+        username={auth.username}
         onToggleSidebar={() => setSidebarOpen(o => !o)}
         onPrev={() => setRefDate(r => navigate(r, view, -1))}
         onNext={() => setRefDate(r => navigate(r, view,  1))}
         onToday={() => { const d = new Date(); setRefDate(d); setSelected(d); }}
         onChangeView={setView}
         onQuery={q => { setQuery(q); if (q && !searchOpen) setSearchOpen(true); }}
-        onNew={() => setCreating({ start: defaultCreateStart(selected) })}
+        onNew={() => {
+          if (!auth.isAdmin) { setLoginOpen(true); return; }
+          setCreating({ start: defaultCreateStart(selected) });
+        }}
         onToggleTheme={toggleTheme}
+        onLogin={() => setLoginOpen(true)}
+        onLogout={auth.logout}
       />
 
       {!online && <SetupBanner />}
@@ -119,12 +133,16 @@ export default function App() {
           refDate={refDate}
           selected={selected}
           tasks={tasks}
+          isAdmin={auth.isAdmin}
           onSelectDate={d => {
             setSelected(d); setRefDate(d);
             if (view === 'month') setView('day');
           }}
           onChangeRef={setRefDate}
-          onNew={() => setCreating({ start: defaultCreateStart(selected) })}
+          onNew={() => {
+            if (!auth.isAdmin) { setLoginOpen(true); return; }
+            setCreating({ start: defaultCreateStart(selected) });
+          }}
           hideCompleted={hideCompleted}
           onToggleHideCompleted={() => setHideCompleted(v => !v)}
         />
@@ -163,12 +181,19 @@ export default function App() {
         <TaskModal
           task={editing}
           initialStart={creating?.start}
+          isAdmin={auth.isAdmin}
           onClose={() => { setEditing(null); setCreating(null); }}
           onSave={async (t: NewTask) => { await add(t); }}
           onUpdate={update}
           onDelete={remove}
         />
       )}
+
+      <LoginModal
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        onLogin={auth.login}
+      />
 
       <SearchPalette
         open={searchOpen}
