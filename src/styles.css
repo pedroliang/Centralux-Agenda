@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light dark;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+/* Scrollbar moderna */
+.cl-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.cl-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cl-scroll::-webkit-scrollbar-thumb {
+  background: rgb(71 85 105 / 0.35);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.cl-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(71 85 105 / 0.6);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+/* Linha de "agora" do calendário */
+.cl-now-line {
+  background: #ef4444;
+  height: 2px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+.cl-now-line::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  background: #ef4444;
+  border-radius: 9999px;
+}
+
+@keyframes cl-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.cl-fade-in {
+  animation: cl-fade-in 160ms ease-out;
+}
+
+/* Foco acessível */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid #3173f5;
+  outline-offset: 2px;
+}
