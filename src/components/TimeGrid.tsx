@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { differenceInMinutes, format, isSameDay, parseISO, startOfDay } from 'date-fns';
 import { BR_WEEKDAYS_SHORT, layoutDayTasks, tasksOnDay, weekDays } from '../lib/dates';
+import { getHolidayMap, formatDateKey } from '../lib/holidays';
 import { Task } from '../types';
 import { TaskChip } from './TaskChip';
 
@@ -36,6 +37,16 @@ export function TimeGrid({ days, tasks, onSelectTask, onCreateAt, onToggleDone }
     );
   }, [days, tasks]);
 
+  // Mapa de feriados
+  const holidayMap = useMemo(() => {
+    const years = new Set(days.map(d => d.getFullYear()));
+    const map = new Map<string, ReturnType<typeof getHolidayMap> extends Map<string, infer V> ? V : never>();
+    for (const y of years) {
+      for (const [k, v] of getHolidayMap(y)) map.set(k, v);
+    }
+    return map;
+  }, [days]);
+
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Cabeçalho com dias */}
@@ -44,6 +55,7 @@ export function TimeGrid({ days, tasks, onSelectTask, onCreateAt, onToggleDone }
         <div />
         {days.map((d, i) => {
           const isToday = isSameDay(d, new Date());
+          const dayHolidays = holidayMap.get(formatDateKey(d));
           return (
             <div key={i} className="py-2 text-center border-l border-slate-200 dark:border-slate-800">
               <div className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -52,11 +64,18 @@ export function TimeGrid({ days, tasks, onSelectTask, onCreateAt, onToggleDone }
               <div
                 className={
                   'inline-flex h-8 w-8 items-center justify-center rounded-full text-sm mt-0.5 ' +
-                  (isToday ? 'bg-brand-600 text-white font-semibold' : 'text-slate-800 dark:text-slate-100')
+                  (isToday ? 'bg-brand-600 text-white font-semibold'
+                    : dayHolidays ? 'text-red-600 dark:text-red-400 font-semibold'
+                    : 'text-slate-800 dark:text-slate-100')
                 }
               >
                 {format(d, 'd')}
               </div>
+              {dayHolidays && (
+                <div className="text-[9px] text-red-600 dark:text-red-400 font-medium truncate px-1 mt-0.5">
+                  {dayHolidays.map(h => h.name).join(' · ')}
+                </div>
+              )}
             </div>
           );
         })}

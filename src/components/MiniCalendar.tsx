@@ -1,6 +1,8 @@
 import { addMonths, format, isSameDay, isSameMonth, subMonths } from 'date-fns';
+import { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { BR_MONTHS, BR_WEEKDAYS_SHORT, monthGrid } from '../lib/dates';
+import { getHolidayMap, formatDateKey } from '../lib/holidays';
 
 interface Props {
   refDate: Date;
@@ -12,6 +14,9 @@ interface Props {
 export function MiniCalendar({ refDate, selected, onSelect, onChangeRef }: Props) {
   const today = new Date();
   const days = monthGrid(refDate);
+
+  const holidayMap = useMemo(() => getHolidayMap(refDate.getFullYear()), [refDate]);
+
   return (
     <div>
       <div className="flex items-center justify-between px-1 mb-2">
@@ -37,19 +42,24 @@ export function MiniCalendar({ refDate, selected, onSelect, onChangeRef }: Props
           const inMonth = isSameMonth(d, refDate);
           const isToday = isSameDay(d, today);
           const isSelected = isSameDay(d, selected);
+          const dayHolidays = holidayMap.get(formatDateKey(d));
+          const isHoliday = !!dayHolidays && inMonth;
           return (
             <button
               key={i}
               onClick={() => onSelect(d)}
+              title={dayHolidays ? dayHolidays.map(h => h.name).join(', ') : undefined}
               className={
                 'h-7 text-xs rounded-full flex items-center justify-center ' +
                 (isSelected
                   ? 'bg-brand-600 text-white font-semibold'
                   : isToday
                     ? 'border border-brand-500 text-brand-600 dark:text-brand-300'
-                    : inMonth
-                      ? 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
-                      : 'text-slate-400 dark:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800')
+                    : isHoliday
+                      ? 'text-red-500 dark:text-red-400 font-semibold hover:bg-red-100 dark:hover:bg-red-900/30'
+                      : inMonth
+                        ? 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        : 'text-slate-400 dark:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800')
               }
             >
               {format(d, 'd')}
