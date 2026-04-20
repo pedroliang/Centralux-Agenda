@@ -14,12 +14,14 @@ interface Props {
 
 export function TaskChip({ task, compact, onClick, onToggleDone, style, className }: Props) {
   const c = COLORS[task.color] ?? COLORS.blue;
+  const isAbsolute = className?.includes('absolute');
   return (
     <div
       style={style}
       onClick={onClick}
       className={
-        'group relative rounded-md border-l-2 pl-2 pr-1 py-1 cursor-pointer select-none ' +
+        'group rounded-md border-l-2 pl-2 pr-1 py-1 cursor-pointer select-none ' +
+        (isAbsolute ? '' : 'relative ') +
         c.bg + ' ' + c.ring +
         (task.completed ? ' opacity-60' : '') +
         ' ' + (className ?? '')
