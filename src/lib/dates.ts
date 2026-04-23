@@ -3,6 +3,7 @@ import {
   format, isSameDay, isSameMonth, isWithinInterval, parseISO, startOfDay,
   startOfMonth, startOfWeek, subDays
 } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { Task, ViewMode } from '../types';
 
 export const BR_WEEKDAYS_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -12,7 +13,7 @@ export const BR_MONTHS = [
 ];
 
 export function formatHeader(ref: Date, mode: ViewMode): string {
-  if (mode === 'day') return format(ref, "EEEE, d 'de' MMMM 'de' yyyy").replace(/^./, c => c.toUpperCase());
+  if (mode === 'day') return format(ref, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR }).replace(/^./, c => c.toUpperCase());
   if (mode === 'month' || mode === 'list') {
     return `${BR_MONTHS[ref.getMonth()]} de ${ref.getFullYear()}`;
   }
@@ -20,9 +21,9 @@ export function formatHeader(ref: Date, mode: ViewMode): string {
   const end = endOfWeek(ref, { weekStartsOn: 0 });
   const sameMonth = isSameMonth(start, end);
   if (sameMonth) {
-    return `${format(start, 'd')} – ${format(end, 'd')} de ${BR_MONTHS[start.getMonth()]} de ${start.getFullYear()}`;
+    return `${format(start, 'd', { locale: ptBR })} – ${format(end, 'd', { locale: ptBR })} de ${BR_MONTHS[start.getMonth()]} de ${start.getFullYear()}`;
   }
-  return `${format(start, 'd MMM')} – ${format(end, 'd MMM yyyy')}`;
+  return `${format(start, 'd MMM', { locale: ptBR })} – ${format(end, 'd MMM yyyy', { locale: ptBR })}`;
 }
 
 export function weekDays(ref: Date): Date[] {

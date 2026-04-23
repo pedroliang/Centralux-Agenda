@@ -1,4 +1,5 @@
 import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { Bell, Check, Pencil, Trash2 } from 'lucide-react';
 import { COLORS } from '../lib/colors';
 import { Task } from '../types';
@@ -36,7 +37,7 @@ export function ListView({ tasks, onSelect, onToggleDone, onDelete }: Props) {
       {keys.map(k => (
         <div key={k}>
           <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">
-            {format(parseISO(k + 'T00:00:00'), "EEEE, d 'de' MMMM").replace(/^./, c => c.toUpperCase())}
+            {format(parseISO(k + 'T00:00:00'), "EEEE, d 'de' MMMM", { locale: ptBR }).replace(/^./, c => c.toUpperCase())}
           </div>
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
             {groups[k].map(t => {

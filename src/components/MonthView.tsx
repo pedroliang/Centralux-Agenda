@@ -1,4 +1,5 @@
 import { format, isSameDay, isSameMonth } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { useMemo } from 'react';
 import { BR_WEEKDAYS_SHORT, monthGrid, tasksOnDay } from '../lib/dates';
 import { getHolidayMap, formatDateKey } from '../lib/holidays';

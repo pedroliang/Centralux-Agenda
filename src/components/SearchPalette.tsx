@@ -1,4 +1,5 @@
 import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { Search, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { COLORS } from '../lib/colors';
@@ -126,7 +127,7 @@ export function SearchPalette({ open, tasks, initialQuery = '', onClose, onSelec
                     {t.title || '(sem título)'}
                   </div>
                   <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                    {format(parseISO(t.start_at), "dd/MM/yyyy 'às' HH:mm")}
+                    {format(parseISO(t.start_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     {t.description ? ' · ' + t.description : ''}
                   </div>
                 </div>

@@ -1,4 +1,5 @@
 import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { Bell, Calendar, Palette, Save, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { COLOR_KEYS, COLORS } from '../lib/colors';
@@ -234,7 +235,7 @@ export function TaskModal({ task, initialStart, isAdmin, onClose, onSave, onUpda
                   ))}
                 </select>
                 <div className="text-xs text-slate-500 dark:text-slate-400">
-                  Dispara em {format(new Date(new Date(start).getTime() - alarmMinutes * 60000), 'dd/MM HH:mm')}
+                  Dispara em {format(new Date(new Date(start).getTime() - alarmMinutes * 60000), 'dd/MM HH:mm', { locale: ptBR })}
                 </div>
               </div>
             )}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { differenceInMinutes, format, isSameDay, parseISO, startOfDay } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { BR_WEEKDAYS_SHORT, layoutDayTasks, tasksOnDay, weekDays } from '../lib/dates';
 import { getHolidayMap, formatDateKey } from '../lib/holidays';
 import { Task } from '../types';

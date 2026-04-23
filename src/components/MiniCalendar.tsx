@@ -1,4 +1,5 @@
 import { addMonths, format, isSameDay, isSameMonth, subMonths } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { BR_MONTHS, BR_WEEKDAYS_SHORT, monthGrid } from '../lib/dates';
