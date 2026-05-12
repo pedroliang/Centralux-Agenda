@@ -1,34 +1,58 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { api, isApiConfigured } from '../lib/api';
 import { NewTask, Task } from '../types';
 
-const LOCAL_KEY = 'celtralux-tasks-local';
+// Cache local — espelha o estado remoto. Funciona como:
+//   - boot rápido (mostra a última lista vista enquanto a API responde)
+//   - fallback offline (se a API estiver fora, o app continua usável)
+const CACHE_KEY = 'celtralux-tasks-cache';
+// Fila de operações de escrita feitas offline; reaplicadas quando a API volta.
+const QUEUE_KEY = 'celtralux-tasks-queue';
+// Intervalo de polling (ms) — substitui o realtime do Supabase.
+const POLL_MS = 7000;
 
-function loadLocal(): Task[] {
+type QueuedOp =
+  | { type: 'create'; tempId: string; payload: NewTask }
+  | { type: 'update'; id: string; patch: Partial<Task> }
+  | { type: 'delete'; id: string };
+
+function loadCache(): Task[] {
   try {
-    const raw = localStorage.getItem(LOCAL_KEY);
+    const raw = localStorage.getItem(CACHE_KEY);
     return raw ? (JSON.parse(raw) as Task[]) : [];
   } catch {
     return [];
   }
 }
-function saveLocal(tasks: Task[]) {
+function saveCache(tasks: Task[]) {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(tasks)); } catch { /* ignore */ }
+}
+function loadQueue(): QueuedOp[] {
   try {
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(tasks));
+    const raw = localStorage.getItem(QUEUE_KEY);
+    return raw ? (JSON.parse(raw) as QueuedOp[]) : [];
   } catch {
-    /* ignore */
+    return [];
   }
+}
+function saveQueue(q: QueuedOp[]) {
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch { /* ignore */ }
 }
 
 function uuid(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-  return 'id-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  return 'tmp-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function sortTasks(arr: Task[]): Task[] {
+  return [...arr].sort((a, b) => a.start_at.localeCompare(b.start_at));
 }
 
 export interface UseTasks {
   tasks: Task[];
   loading: boolean;
   error: string | null;
+  /** true quando a última chamada à API foi bem-sucedida (UI mostra "Online"). */
   online: boolean;
   add: (t: NewTask) => Promise<Task | null>;
   update: (id: string, patch: Partial<Task>) => Promise<void>;
@@ -38,102 +62,120 @@ export interface UseTasks {
 }
 
 export function useTasks(): UseTasks {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<Task[]>(() => loadCache());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const online = isSupabaseConfigured;
+  const [online, setOnline] = useState(false);
   const mounted = useRef(true);
 
-  const refresh = useCallback(async () => {
-    if (!supabase) {
-      setTasks(loadLocal());
-      setLoading(false);
-      return;
+  // Mantém o cache em sincronia sempre que `tasks` mudar.
+  useEffect(() => { saveCache(tasks); }, [tasks]);
+
+  // Reaplica operações que foram enfileiradas offline.
+  const flushQueue = useCallback(async () => {
+    const queue = loadQueue();
+    if (queue.length === 0) return;
+    const remaining: QueuedOp[] = [];
+    for (const op of queue) {
+      try {
+        if (op.type === 'create') {
+          const created = await api.create(op.payload);
+          // Substitui o id temporário pelo id definitivo no estado local.
+          setTasks(prev => sortTasks(prev.map(t => (t.id === op.tempId ? created : t))));
+        } else if (op.type === 'update') {
+          await api.update(op.id, op.patch);
+        } else if (op.type === 'delete') {
+          await api.remove(op.id);
+        }
+      } catch {
+        remaining.push(op); // mantém na fila e tenta de novo depois
+      }
     }
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('*')
-      .order('start_at', { ascending: true });
-    if (!mounted.current) return;
-    if (error) {
-      setError(error.message);
-    } else {
-      setError(null);
-      setTasks((data ?? []) as Task[]);
-    }
-    setLoading(false);
+    saveQueue(remaining);
   }, []);
 
+  const refresh = useCallback(async () => {
+    try {
+      const data = await api.list();
+      if (!mounted.current) return;
+      setTasks(sortTasks(data));
+      setError(null);
+      setOnline(true);
+      // Após confirmar conexão, drena a fila offline.
+      flushQueue();
+    } catch (err) {
+      if (!mounted.current) return;
+      setOnline(false);
+      setError(err instanceof Error ? err.message : 'Falha ao buscar tarefas');
+    } finally {
+      if (mounted.current) setLoading(false);
+    }
+  }, [flushQueue]);
+
+  // Boot + polling
   useEffect(() => {
     mounted.current = true;
     refresh();
-    if (!supabase) return () => { mounted.current = false; };
-
-    const channel = supabase
-      .channel('tasks-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'tasks' },
-        payload => {
-          setTasks(prev => {
-            if (payload.eventType === 'INSERT') {
-              const t = payload.new as Task;
-              if (prev.some(x => x.id === t.id)) return prev;
-              return [...prev, t].sort((a, b) => a.start_at.localeCompare(b.start_at));
-            }
-            if (payload.eventType === 'UPDATE') {
-              const t = payload.new as Task;
-              return prev.map(x => (x.id === t.id ? t : x));
-            }
-            if (payload.eventType === 'DELETE') {
-              const t = payload.old as Task;
-              return prev.filter(x => x.id !== t.id);
-            }
-            return prev;
-          });
-        }
-      )
-      .subscribe();
-
+    const id = window.setInterval(refresh, POLL_MS);
     return () => {
       mounted.current = false;
-      if (supabase) supabase.removeChannel(channel);
+      window.clearInterval(id);
+    };
+  }, [refresh]);
+
+  // Refresh agressivo quando a aba volta a ficar visível ou a rede volta.
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+    const onOnline = () => refresh();
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', onOnline);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', onOnline);
     };
   }, [refresh]);
 
   const add = useCallback(async (t: NewTask): Promise<Task | null> => {
-    if (!supabase) {
-      const local: Task = {
-        ...t,
-        id: uuid(),
-        completed_at: t.completed ? new Date().toISOString() : null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      setTasks(prev => {
-        const next = [...prev, local].sort((a, b) => a.start_at.localeCompare(b.start_at));
-        saveLocal(next);
-        return next;
-      });
-      return local;
+    const tempId = uuid();
+    const optimistic: Task = {
+      ...t,
+      id: tempId,
+      completed_at: t.completed ? new Date().toISOString() : null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    // Optimistic insert
+    setTasks(prev => sortTasks([...prev, optimistic]));
+    try {
+      const created = await api.create(t);
+      setTasks(prev => sortTasks(prev.map(x => (x.id === tempId ? created : x))));
+      setOnline(true);
+      return created;
+    } catch (err) {
+      // Falha na API: enfileira para tentar de novo quando voltar online.
+      const queue = loadQueue();
+      queue.push({ type: 'create', tempId, payload: t });
+      saveQueue(queue);
+      setOnline(false);
+      setError(err instanceof Error ? err.message : 'Falha ao criar (salvo localmente)');
+      return optimistic;
     }
-    const { data, error } = await supabase.from('tasks').insert(t).select('*').single();
-    if (error) { setError(error.message); return null; }
-    return data as Task;
   }, []);
 
   const update = useCallback(async (id: string, patch: Partial<Task>) => {
-    if (!supabase) {
-      setTasks(prev => {
-        const next = prev.map(t => (t.id === id ? { ...t, ...patch, updated_at: new Date().toISOString() } : t));
-        saveLocal(next);
-        return next;
-      });
-      return;
+    setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...patch, updated_at: new Date().toISOString() } : t)));
+    try {
+      const updated = await api.update(id, patch);
+      setTasks(prev => sortTasks(prev.map(t => (t.id === id ? updated : t))));
+      setOnline(true);
+    } catch (err) {
+      // Mantemos a versão otimista e enfileiramos a sincronização.
+      const queue = loadQueue();
+      queue.push({ type: 'update', id, patch });
+      saveQueue(queue);
+      setOnline(false);
+      setError(err instanceof Error ? err.message : 'Falha ao salvar (salvo localmente)');
     }
-    const { error } = await supabase.from('tasks').update(patch).eq('id', id);
-    if (error) setError(error.message);
   }, []);
 
   const toggleDone = useCallback(async (id: string, done: boolean) => {
@@ -144,17 +186,34 @@ export function useTasks(): UseTasks {
   }, [update]);
 
   const remove = useCallback(async (id: string) => {
-    if (!supabase) {
-      setTasks(prev => {
-        const next = prev.filter(t => t.id !== id);
-        saveLocal(next);
-        return next;
-      });
-      return;
+    setTasks(prev => prev.filter(t => t.id !== id));
+    try {
+      await api.remove(id);
+      setOnline(true);
+    } catch (err) {
+      const queue = loadQueue();
+      queue.push({ type: 'delete', id });
+      saveQueue(queue);
+      setOnline(false);
+      setError(err instanceof Error ? err.message : 'Falha ao remover (salvo localmente)');
     }
-    const { error } = await supabase.from('tasks').delete().eq('id', id);
-    if (error) setError(error.message);
   }, []);
 
-  return { tasks, loading, error, online, add, update, toggleDone, remove, refresh };
+  // online indica que a última chamada deu certo; isApiConfigured indica que a env existe.
+  // Em dev (sem VITE_API_URL) o app pode estar usando proxy local — então tratamos como online
+  // se o ping deu certo.
+  return {
+    tasks,
+    loading,
+    error,
+    online: online,
+    add,
+    update,
+    toggleDone,
+    remove,
+    refresh
+  };
 }
+
+// Exporta para o SetupBanner consultar.
+export { isApiConfigured };

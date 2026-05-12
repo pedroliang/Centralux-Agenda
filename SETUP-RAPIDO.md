@@ -1,58 +1,62 @@
-# Setup rápido — 3 passos
+# Setup rápido — Neon + Vercel + GitHub Pages
 
-Você disse "crie um repositório no github e crie o bd no supabase".
-Meu sandbox bloqueia `api.github.com` e `api.supabase.com`, então fiz **todo o código** e separei os últimos cliques em 3 passos curtos. Leva ~3 minutos.
+Stack: **Neon** (Postgres) + **Vercel Functions** (API) + **GitHub Pages** (front).
+Leva ~5 minutos depois que você tem as contas.
 
-## Passo 1 — Criar o repositório no GitHub
+## Passo 1 — Banco no Neon (já feito)
 
-Abra um terminal na pasta do projeto (`celtralux-agenda/`) e cole:
+Projeto Neon **`centralux-agenda`** já criado e o `db/schema.sql` já aplicado.
+A tabela `public.tasks` está vazia, pronta para receber tarefas.
+
+A connection string fica visível no Neon em **Dashboard → Connection Details**.
+Formato: `postgresql://USER:PASSWORD@ep-xxxx.sa-east-1.aws.neon.tech/neondb?sslmode=require`.
+
+> Mantenha essa string em segredo. Ela só vai como env var no Vercel — não no front.
+
+## Passo 2 — Deploy no Vercel
 
 ```bash
-git init -b main
-git add .
-git commit -m "chore: scaffold Celtralux Agenda"
-
-echo "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" | gh auth login --with-token
-gh repo create celtralux-agenda --private --source=. --remote=origin --push
+npm i -g vercel        # se ainda não tem
+cd celtralux-agenda
+vercel link            # escolhe/cria o projeto "centralux-agenda"
+vercel env add DATABASE_URL production
+# cole a connection string do Neon
+vercel env add DATABASE_URL preview
+# cole de novo (ou outro DB de teste)
+vercel --prod
 ```
 
-Se não tiver o `gh`, instale com `sudo apt install gh` (Linux), `brew install gh` (macOS) ou use:
-
+Você vai ganhar uma URL `https://centralux-agenda.vercel.app`. Teste:
 ```bash
-curl -s -H "Authorization: token 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" \
-     -H "Accept: application/vnd.github+json" \
-     https://api.github.com/user/repos \
-     -d '{"name":"celtralux-agenda","private":true}'
-
-# Troque SEU_USER pelo seu usuário do GitHub:
-git remote add origin https://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@github.com/SEU_USER/celtralux-agenda.git
-git push -u origin main
+curl https://centralux-agenda.vercel.app/api/tasks   # deve retornar []
 ```
 
-## Passo 2 — Criar o banco no Supabase
+## Passo 3 — Apontar o front para a API
 
-1. https://supabase.com/dashboard → **New project** → nome `celtralux-agenda` → região São Paulo.
-2. Abra **SQL Editor** → **New query** → cole o conteúdo de `supabase/schema.sql` → **Run**.
-3. **Project settings → API** → copie *Project URL* e *anon public*.
+Edite `.env.local`:
+```env
+VITE_API_URL=https://centralux-agenda.vercel.app/api
+```
 
-## Passo 3 — Rodar local
-
+Rebuild e deploy do front:
 ```bash
-cp .env.example .env.local
-# edite .env.local e cole VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY
 npm install
-npm run dev
+npm run deploy        # publica em GitHub Pages via gh-pages
 ```
 
-Abra http://localhost:5173. Pronto — colaborativo em tempo real.
+Pronto. Abra a URL do Pages e crie uma tarefa. Ela é gravada no Neon.
+Para conferir no banco:
+```sql
+select id, title, start_at, created_at from public.tasks order by created_at desc limit 10;
+```
 
 ---
 
 ## ⚠️ Segurança — IMPORTANTE
 
-Você colou os tokens no chat. Depois do setup:
+Você colou tokens no chat. Depois do setup, **rotacione**:
+- Neon: https://console.neon.tech → Account Settings → API Keys → revogar `napi_1bmi3z...`
+- Supabase: https://supabase.com/dashboard/account/tokens → revogar `sbp_1746b...`
+  (mesmo o Supabase não sendo mais usado, o token ainda dá acesso aos seus outros 3 projetos)
 
-- **GitHub**: https://github.com/settings/tokens → *Revoke* o token `ghp_wyiW2...`
-- **Supabase**: https://supabase.com/dashboard/account/tokens → *Revoke* o token `sbp_1746b...`
-
-Mesmo que sejam só pra este projeto, tokens não devem ficar em chats/commits.
+Tokens nunca devem ficar em chats, README ou commits.

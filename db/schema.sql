@@ -1,12 +1,15 @@
 -- =============================================================================
--- Celtralux Agenda — Schema Supabase
+-- Celtralux Agenda — Schema Neon (Postgres puro, sem RLS/Realtime do Supabase)
+-- Como rodar:
+--   1) Crie um projeto Neon (https://console.neon.tech)
+--   2) Pegue a connection string (Dashboard → Connection Details)
+--   3) psql "postgresql://USER:PASS@HOST.neon.tech/neondb?sslmode=require" -f db/schema.sql
+--      ou cole o conteúdo deste arquivo no SQL Editor do Neon e dê Run.
 -- =============================================================================
 
--- Extensões
 create extension if not exists "pgcrypto";
 create extension if not exists pg_trgm;
 
--- Tabela principal de tarefas/eventos
 create table if not exists public.tasks (
   id            uuid primary key default gen_random_uuid(),
   title         text not null,
@@ -23,16 +26,12 @@ create table if not exists public.tasks (
   updated_at    timestamptz not null default now()
 );
 
--- Índices para pesquisa rápida
 create index if not exists tasks_start_at_idx    on public.tasks (start_at);
 create index if not exists tasks_alarm_at_idx    on public.tasks (alarm_at) where alarm_at is not null;
 create index if not exists tasks_completed_idx   on public.tasks (completed);
--- Note: trigram indexes might fail if pg_trgm is not in search path or if syntax differs.
--- These are standard for Postgres.
 create index if not exists tasks_title_trgm_idx  on public.tasks using gin (title gin_trgm_ops);
 create index if not exists tasks_desc_trgm_idx   on public.tasks using gin (description gin_trgm_ops);
 
--- Trigger para manter updated_at
 create or replace function public.tasks_set_updated_at()
 returns trigger language plpgsql as $$
 begin
@@ -51,21 +50,11 @@ create trigger trg_tasks_set_updated_at
 before update on public.tasks
 for each row execute function public.tasks_set_updated_at();
 
--- Row Level Security
-alter table public.tasks enable row level security;
-
-create policy "tasks_anon_select" on public.tasks for select to anon using (true);
-create policy "tasks_anon_insert" on public.tasks for insert to anon with check (true);
-create policy "tasks_anon_update" on public.tasks for update to anon using (true) with check (true);
-create policy "tasks_anon_delete" on public.tasks for delete to anon using (true);
-
--- Realtime
-do $$
-begin
-  if not exists (
-    select 1 from pg_publication_tables
-    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'tasks'
-  ) then
-    execute 'alter publication supabase_realtime add table public.tasks';
-  end if;
-end $$;
+-- Observações:
+-- * No Supabase a tabela ficava com RLS aberta para o role "anon", porque
+--   o cliente JS chamava o PostgREST direto do navegador. Aqui o navegador
+--   NÃO conecta no banco — quem fala com o Postgres é a função serverless
+--   no Vercel (com a connection string em env var). Então não existe role
+--   anônima exposta e RLS não é necessário.
+-- * Se um dia você quiser endurecer ainda mais, crie um role "app" sem
+--   permissão de DDL e use essa connection string só na função.
